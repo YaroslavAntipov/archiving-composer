@@ -14,6 +14,7 @@ program
     .usage('[options] -i <zipFile>')
     .option('-i, --input <zipFile>',  'Archive ZIP file')
     .option('-f, --format [type]', 'Output format [webm,mp4]', 'webm')
+    .option('-if, --inputFormat [type]',  'Input format [webm, mp4, mkv]', 'mkv')
     .parse(process.argv);
 
 if (!program.input) {
@@ -49,6 +50,7 @@ result.on("close", function() {
   var archive_path = temp_dir;
 
   var format = program.format;
+  var inputFormat = program.inputFormat;
 
 
 
@@ -108,8 +110,10 @@ result.on("close", function() {
   var addStreams = function(active, streams) {
     if (streams) {
       streams.forEach(function(stream) {
+        const { firstName, lastName } = JSON.parse(stream.connectionData);
+
         active[stream.streamId] = {offset: stream.startTimeOffset, 
-                                   name: stream.connectionData};
+                                   name: `${firstName} ${lastName}`};
       });
     }
   };
@@ -149,7 +153,7 @@ result.on("close", function() {
 
   var drawText = function(file, x, y, prefix) {
     if (!file.name || file.name === "") return "";
-    return prefix + "drawtext=fontsize=30:fontcolor=white:fontfile=/Library/Fonts/Tahoma.ttf:text='" + file.name + "':"+x+":"+y;
+    return prefix + "drawtext=fontsize=20:fontcolor=white:fontfile=/Library/Fonts/Tahoma.ttf:box=1:boxcolor=black@0.4:boxborderw=5:text='" + file.name + "':"+x+":"+y;
   };
 
   //console.log(JSON.stringify(composer, null, 4));
@@ -175,6 +179,17 @@ result.on("close", function() {
       if (e.files.length == 4) {
         filter += drawText(e.files[3], "x=3*w/4-text_w/2","y=h-line_h-5", ",");
       }
+    } else if (e.files.length == 5 || e.files.length == 6) {
+      // [4]scale=320:-1[e];[5]scale=320:-1[f];
+      filter = "-filter_complex \"[0]scale=320:-1[a];[1]scale=320:-1[b];[2]scale=320:-1[c];[3]scale=320:-1[d];[4]scale=320:-1[e];[5]scale=320:-1[f];[a]pad=960:480[x];[x][b]overlay=320:0[y];[y][c]overlay=640:0[z];[z][d]overlay=0:240[w];[w][e]overlay=320:240[v];[v][f]overlay=640:240";
+      filter += drawText(e.files[0], "x=w/6-text_w/2","y=h/2-line_h-5", ",");
+      filter += drawText(e.files[1], "x=3*w/6-text_w/2","y=h/2-line_h-5", ",");
+      filter += drawText(e.files[2], "x=5*w/6-text_w/2","y=h/2-line_h-5", ",");
+      filter += drawText(e.files[3], "x=w/6-text_w/2","y=h-line_h-5", ",");
+      filter += drawText(e.files[4], "x=3*w/6-text_w/2","y=h-line_h-5", ",");
+      if (e.files.length == 6) {
+        filter += drawText(e.files[5], "x=5*w/6-text_w/2","y=h-line_h-5", ",");
+      }
     }
     if (filter.length !== 0) {
       filter += "\" ";
@@ -186,7 +201,7 @@ result.on("close", function() {
       var name = "name";
       var duration = (e.end - stream.offset)/1000;
       minDuration = minDuration < duration ? minDuration : duration;
-      cmd += util.format("-ss %d -t %d -i " + archive_path + "/%s.webm ", 
+      cmd += util.format("-ss %d -t %d -i " + archive_path + "/%s." + inputFormat + " ", 
                           stream.offset/1000, 
                           (e.end - stream.offset)/1000, 
                           stream.streamId);
@@ -194,6 +209,10 @@ result.on("close", function() {
     // add a dummy black input for 3 streams
     if (e.files.length == 3) {
       cmd += "-f lavfi -i color=size=640x480:duration=" + minDuration + " -t " + minDuration + " ";
+    }
+    // add a dummy black input for 5 streams
+    if (e.files.length == 5) {
+      cmd += "-f lavfi -i color=size=960x480:duration=" + minDuration + " -t " + minDuration + " ";
     }
     var chunk = util.format("temp-%d-%d." + format, e.start, e.end);
     chunks.push(chunk);

@@ -30,10 +30,11 @@ Then checkout this repo and run `npm install`.
 
   Options:
 
-    -h, --help             output usage information
-    -V, --version          output the version number
-    -i, --input <zipFile>  Archive ZIP file
-    -f, --format [type]    Output format [webm,mp4]
+    -h, --help                output usage information
+    -V, --version             output the version number
+    -i, --input <zipFile>     Archive ZIP file
+    -f, --format [type]       Output format [webm,mp4]. Default: webm
+    -if, --inputFormat [type] Input format [webm, mp4, mkv]. Default: mkv
 ```
 
 The ZIP file is the output of the OpenTok individual stream archiving API.
